@@ -1,0 +1,352 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Bio/Non-Bio Waste Classifier</title>
+  <style>
+    /* 🌿 Theme Variables */
+    :root {
+      --primary-color: #4caf50;
+      --accent-color: #00bcd4;
+      --success-color: #2ecc71;
+      --danger-color: #e74c3c;
+      --bg-gradient: radial-gradient(circle at top, #e0f7fa 0%, #c8f7c5 40%, #b2ebf2 100%);
+      --text-color: #2c3e50;
+    }
+
+    /* 🌈 General Styling */
+    body {
+      font-family: "Poppins", sans-serif;
+      min-height: 100vh;
+      margin: 0;
+      background: var(--bg-gradient);
+      color: var(--text-color);
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      overflow-x: hidden;
+    }
+
+    h1 {
+      font-size: 2.2em;
+      color: var(--primary-color);
+      text-shadow: 0 0 15px rgba(76, 175, 80, 0.4);
+      animation: float 3s ease-in-out infinite;
+    }
+
+    @keyframes float {
+      0%, 100% { transform: translateY(0); }
+      50% { transform: translateY(-6px); }
+    }
+
+    #model-info {
+      margin-bottom: 20px;
+      font-size: 1.1em;
+      opacity: 0.85;
+    }
+
+    /* 🌿 Glassy Container */
+    .glass-card {
+      background: rgba(255, 255, 255, 0.3);
+      border: 2px solid rgba(255, 255, 255, 0.4);
+      backdrop-filter: blur(10px);
+      border-radius: 20px;
+      box-shadow: 0 8px 30px rgba(0, 0, 0, 0.1);
+      padding: 40px 30px;
+      text-align: center;
+      width: 90%;
+      max-width: 500px;
+      animation: fadeIn 1s ease;
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; transform: scale(0.95); }
+      to { opacity: 1; transform: scale(1); }
+    }
+
+    /* 🔘 Buttons */
+    .mode-buttons {
+      display: flex;
+      justify-content: center;
+      gap: 15px;
+      margin-bottom: 25px;
+      flex-wrap: wrap;
+    }
+
+    .mode-btn {
+      border: none;
+      border-radius: 12px;
+      padding: 14px 25px;
+      font-size: 1em;
+      cursor: pointer;
+      color: white;
+      background: linear-gradient(135deg, var(--primary-color), var(--accent-color));
+      box-shadow: 0 5px 15px rgba(0, 188, 212, 0.4);
+      transition: all 0.3s ease;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .mode-btn::after {
+      content: "";
+      position: absolute;
+      top: -50%;
+      left: -50%;
+      width: 200%;
+      height: 200%;
+      background: rgba(255, 255, 255, 0.2);
+      transform: rotate(45deg);
+      transition: all 0.6s ease;
+      opacity: 0;
+    }
+
+    .mode-btn:hover::after {
+      top: -20%;
+      left: -20%;
+      opacity: 1;
+    }
+
+    .mode-btn:hover {
+      transform: scale(1.05);
+      box-shadow: 0 8px 25px rgba(0, 188, 212, 0.6);
+    }
+
+    /* 🖼️ Upload Area */
+    #drop-area {
+      border: 2px dashed var(--accent-color);
+      border-radius: 20px;
+      width: 100%;
+      height: 160px;
+      margin-top: 15px;
+      background: rgba(255, 255, 255, 0.4);
+      display: none;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      cursor: pointer;
+      transition: all 0.3s ease;
+    }
+
+    #drop-area p {
+      margin: 6px 0;
+      font-size: 0.95em;
+    }
+
+    #drop-area.highlight {
+      background: rgba(0, 188, 212, 0.2);
+      border-color: var(--primary-color);
+    }
+
+    #image-preview {
+      max-width: 90%;
+      max-height: 240px;
+      margin: 20px auto 10px;
+      border-radius: 15px;
+      box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
+      display: none;
+    }
+
+    /* 📸 Webcam */
+    #webcam-container {
+      display: none;
+      margin-top: 15px;
+    }
+
+    canvas, video {
+      border-radius: 15px;
+      box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
+      width: 320px;
+      height: 240px;
+    }
+
+    /* 📊 Result Display */
+    #label-container {
+      margin-top: 20px;
+      min-height: 80px;
+      font-size: 1.1em;
+      font-weight: 600;
+    }
+
+    #label-container div {
+      padding: 10px 18px;
+      margin: 8px auto;
+      border-radius: 10px;
+      text-transform: uppercase;
+      letter-spacing: 0.6px;
+      color: white;
+      display: inline-block;
+      animation: fadeInUp 0.5s ease forwards;
+      opacity: 0;
+      transform: translateY(10px);
+      min-width: 250px;
+    }
+
+    @keyframes fadeInUp {
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    .Bio-Result {
+      background-color: var(--success-color);
+      box-shadow: 0 0 15px rgba(46, 204, 113, 0.5);
+    }
+
+    .NonBio-Result {
+      background-color: var(--danger-color);
+      box-shadow: 0 0 15px rgba(231, 76, 60, 0.5);
+    }
+
+    .loading {
+      color: var(--accent-color);
+      font-style: italic;
+      animation: pulse 1s infinite;
+    }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 0.6; }
+      50% { opacity: 1; }
+    }
+
+    footer {
+      margin-top: 40px;
+      font-size: 0.85em;
+      color: #555;
+      opacity: 0.8;
+    }
+  </style>
+</head>
+<body>
+  <div class="glass-card">
+    <h1>♻️ Bin Genius Computer Vision Model</h1>
+    <div id="model-info">AI-powered classifier: Bio vs Non-Bio Waste</div>
+
+    <div class="mode-buttons">
+      <button id="webcam-btn" class="mode-btn">📸 Use Webcam</button>
+      <button id="upload-btn" class="mode-btn">🖼️ Upload / Drag & Drop</button>
+    </div>
+
+    <div id="webcam-container"></div>
+    <div id="drop-area">
+      <p>👇 Drag & Drop your image here</p>
+      <p style="font-size: 0.85em;">or click to select a file</p>
+      <input type="file" id="fileElem" accept="image/*" style="display:none;">
+    </div>
+
+    <img id="image-preview" src="#" alt="Image Preview" />
+    <div id="label-container" class="loading">Loading Model...</div>
+  </div>
+
+  <footer>🌱 Built with Teachable Machine | Sustainable AI Initiative</footer>
+
+  <!-- JS -->
+  <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@latest/dist/tf.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@teachablemachine/image@latest/dist/teachablemachine-image.min.js"></script>
+
+  <script>
+    const URL = "https://teachablemachine.withgoogle.com/models/DcWIH3boE/";
+    let model, webcam, labelContainer, maxPredictions;
+
+    const webcamBtn = document.getElementById("webcam-btn");
+    const uploadBtn = document.getElementById("upload-btn");
+    const webcamContainer = document.getElementById("webcam-container");
+    const dropArea = document.getElementById("drop-area");
+    const fileElem = document.getElementById("fileElem");
+    const imagePreview = document.getElementById("image-preview");
+
+    webcamBtn.onclick = () => startWebcamMode();
+    uploadBtn.onclick = () => startUploadMode();
+
+    window.onload = init;
+
+    async function init() {
+      const modelURL = URL + "model.json";
+      const metadataURL = URL + "metadata.json";
+      model = await tmImage.load(modelURL, metadataURL);
+      maxPredictions = model.getTotalClasses();
+      labelContainer = document.getElementById("label-container");
+      labelContainer.classList.remove("loading");
+      labelContainer.innerHTML = "Choose a mode to begin.";
+    }
+
+    function startUploadMode() {
+      dropArea.style.display = "flex";
+      webcamContainer.style.display = "none";
+      imagePreview.style.display = "none";
+      labelContainer.innerHTML = "Drop or select an image.";
+      setupUpload();
+    }
+
+    function startWebcamMode() {
+      dropArea.style.display = "none";
+      imagePreview.style.display = "none";
+      webcamContainer.style.display = "block";
+      initWebcam();
+    }
+
+    async function initWebcam() {
+      webcam = new tmImage.Webcam(320, 240, true);
+      await webcam.setup();
+      await webcam.play();
+      webcamContainer.innerHTML = "";
+      webcamContainer.appendChild(webcam.canvas);
+      window.requestAnimationFrame(loop);
+    }
+
+    let lastPredictionTime = 0;
+
+async function loop(timestamp) {
+  webcam.update();
+
+  // Only predict every 500ms (half a second)
+  if (timestamp - lastPredictionTime > 500) {
+    await predict(webcam.canvas);
+    lastPredictionTime = timestamp;
+  }
+
+  window.requestAnimationFrame(loop);
+}
+
+
+    function setupUpload() {
+      dropArea.addEventListener("click", () => fileElem.click());
+      dropArea.addEventListener("dragover", e => {
+        e.preventDefault(); dropArea.classList.add("highlight");
+      });
+      dropArea.addEventListener("dragleave", () => dropArea.classList.remove("highlight"));
+      dropArea.addEventListener("drop", e => {
+        e.preventDefault(); dropArea.classList.remove("highlight");
+        handleFiles(e.dataTransfer.files);
+      });
+      fileElem.addEventListener("change", e => handleFiles(e.target.files));
+    }
+
+    function handleFiles(files) {
+      if (!files.length || !files[0].type.startsWith("image/")) return alert("Please select an image file.");
+      const file = files[0];
+      const reader = new FileReader();
+      reader.onload = e => {
+        imagePreview.src = e.target.result;
+        imagePreview.style.display = "block";
+        imagePreview.onload = () => predict(imagePreview);
+      };
+      reader.readAsDataURL(file);
+    }
+
+    async function predict(source) {
+      const prediction = await model.predict(source);
+      labelContainer.innerHTML = "";
+      prediction.sort((a, b) => b.probability - a.probability);
+
+      prediction.forEach((p, i) => {
+        const div = document.createElement("div");
+        div.innerHTML = `${p.className}: ${(p.probability * 100).toFixed(2)}%`;
+        div.classList.add(p.className.toLowerCase().includes("bio") ? "Bio-Result" : "NonBio-Result");
+        div.style.animationDelay = `${i * 0.1}s`;
+        labelContainer.appendChild(div);
+      });
+    }
+  </script>
+</body>
+</html>
+
